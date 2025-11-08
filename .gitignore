@@ -1,0 +1,69 @@
+# -------------------------
+# OS-AR Project .gitignore
+# -------------------------
+
+# === Python bytecode / cache ===
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.pyo
+
+# === Virtual environments ===
+venv/
+.env/
+.env*/
+.venv*/
+
+# === IDE / Editor specific ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === Logs & checkpoints ===
+*.log
+logs/
+checkpoints/
+*.ckpt
+*.pth
+*.pt
+*.bin
+
+# === Model weights (optional) ===
+ViT-B-32.pt
+
+# === Data folders ===
+data/**
+!data/datalist/
+!data/ucf101/ucfTrainTestlist/
+!data/ucf101/labels/
+# (ignore everything in data except small metadata folders)
+
+# === Output / results ===
+output/
+results/
+runs/
+temp/
+tmp/
+
+# === OS junk ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === Misc ===
+*.zip
+*.tar
+*.gz
+*.rar
+
+# === Jupyter / IPython ===
+.ipynb_checkpoints/
+*.ipynb~
+
+# === Build / Dist ===
+build/
+dist/
+*.egg-info/
