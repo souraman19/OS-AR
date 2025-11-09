@@ -1,0 +1,3 @@
+python main.py \
+  -cfg configs/ucf101/16_32.yaml \
+  --output output/ucf101

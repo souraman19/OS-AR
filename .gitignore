@@ -34,11 +34,28 @@ checkpoints/
 ViT-B-32.pt
 
 # === Data folders ===
+# Ignore everything under data/
 data/**
+
+# Then explicitly allow these folders
+!data/
 !data/datalist/
-!data/ucf101/ucfTrainTestlist/
+!data/ucfTrainTestlist/
+!data/ucf101/
+
+# Allow specific files under data/ucf101
 !data/ucf101/labels/
-# (ignore everything in data except small metadata folders)
+!data/ucf101/a.py
+!data/ucf101/create_fs.py
+!data/ucf101/create_os.py
+!data/ucf101/t.txt
+!data/ucf101/t1.txt
+!data/ucf101/t2.txt
+!data/ucf101/t3.txt
+!data/ucf101/train.txt
+!data/ucf101/tt.txt
+!data/ucf101/val.txt
+
 
 # === Output / results ===
 output/
@@ -46,6 +63,15 @@ results/
 runs/
 temp/
 tmp/
+
+# Unignore specific files inside output
+!output/
+!output/ucf101/
+!output/ucf101_test/
+!output/ucf101/log_rank0.txt
+!output/ucf101/16_32.yaml
+!output/ucf101_test/log_rank0.txt
+!output/ucf101_test/16_32.yaml
 
 # === OS junk ===
 .DS_Store

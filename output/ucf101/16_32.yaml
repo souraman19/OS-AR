@@ -1,0 +1,15 @@
+DATA:
+    ROOT: 'F:/OS-AR/data/ucf101'
+    TRAIN_FILE: 'F:/OS-AR/data/datalist/fs_train.txt'
+    VAL_FILE: 'F:/OS-AR/data/datalist/fs_test.txt'
+    DATASET: ucf101
+    NUM_FRAMES: 32
+    NUM_CLASSES: 101
+    LABEL_LIST: 'F:/OS-AR/data/ucf101/labels/ucf_101_labels.csv'
+MODEL:
+    ARCH: ViT-B/16
+TRAIN:
+    BATCH_SIZE: 2
+    ACCUMULATION_STEPS: 4
+    EPOCHS: 50
+    LR: 2.e-6
