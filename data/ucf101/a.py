@@ -1,19 +1,37 @@
+# split_equal_t1_t2.py
+# Divide videos per class equally between t1.txt and t2.txt
+
+from collections import defaultdict
+
+input_file = "t.txt"
 t1_file = "t1.txt"
 t2_file = "t2.txt"
-t3_file = "t3.txt"
 
-# Read all lines from t1 and t2
-with open(t1_file, "r") as f1:
-    t1_lines = [line.strip() for line in f1 if line.strip()]
+# Read all videos
+class_to_videos = defaultdict(list)
 
-with open(t2_file, "r") as f2:
-    t2_lines = {line.strip() for line in f2 if line.strip()}  # use a set for fast lookup
+with open(input_file, "r") as f:
+    for line in f:
+        line = line.strip()
+        if not line:
+            continue
+        class_name = line.split('/')[0]
+        class_to_videos[class_name].append(line)
 
-# Keep only lines in t1 that are not in t2
-t3_lines = [line for line in t1_lines if line not in t2_lines]
+# Write equal split to t1 and t2
+with open(t1_file, "w") as t1, open(t2_file, "w") as t2:
+    for class_name, videos in class_to_videos.items():
+        total = len(videos)
+        half = total // 2
 
-# Write to t3
-with open(t3_file, "w") as f3:
-    f3.write("\n".join(t3_lines))
+        # Split equally (if odd, t2 will get one extra)
+        t1_videos = videos[:half]
+        t2_videos = videos[half:]
 
-print(f"t3.txt created with {len(t3_lines)} lines (t1 - t2).")
+        for v in t1_videos:
+            t1.write(v + "\n")
+        for v in t2_videos:
+            t2.write(v + "\n")
+
+print("Split complete!")
+print(f"→ Saved {t1_file} and {t2_file} with equal class-wise splits.")

@@ -48,6 +48,7 @@ data/**
 !data/ucf101/a.py
 !data/ucf101/create_fs.py
 !data/ucf101/create_os.py
+!data/ucf101/create_os_test.py
 !data/ucf101/t.txt
 !data/ucf101/t1.txt
 !data/ucf101/t2.txt

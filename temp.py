@@ -152,7 +152,7 @@ def main(config):
         train_loader.sampler.set_epoch(epoch)
         train_one_epoch(epoch, model, criterion, optimizer, lr_scheduler, train_loader, text_labels, config, mixup_fn)
 
-        acc1 = validate(val_loader, text_labels, model, config)
+        acc1, _, _ = validate(val_loader, text_labels, model, config)
         logger.info(f"Accuracy of the network on the {len(val_data)} test videos: {acc1:.1f}%")
         is_best = acc1 > max_accuracy
         max_accuracy = max(max_accuracy, acc1)
@@ -169,7 +169,7 @@ def main(config):
     config.TEST.NUM_CROP = 3
     config.freeze()
     train_data, val_data, train_loader, val_loader = build_dataloader(logger, config)
-    acc1 = validate(val_loader, text_labels, model, config)
+    acc1, _, _ = validate(val_loader, text_labels, model, config)
     logger.info(f"Accuracy of the network on the {len(val_data)} test videos: {acc1:.1f}%")
 
 
@@ -180,6 +180,7 @@ def train_one_epoch(epoch, model, criterion, optimizer, lr_scheduler, train_load
     num_steps = len(train_loader)
     batch_time = AverageMeter()
     tot_loss_meter = AverageMeter()
+    acc1_meter = AverageMeter()
     
     start = time.time()
     end = time.time()
@@ -187,11 +188,10 @@ def train_one_epoch(epoch, model, criterion, optimizer, lr_scheduler, train_load
     texts = text_labels.cuda(non_blocking=True)
     
     for idx, batch_data in enumerate(train_loader):
-
         images = batch_data["imgs"].cuda(non_blocking=True)
         label_id = batch_data["label"].cuda(non_blocking=True)
         label_id = label_id.reshape(-1)
-        images = images.view((-1,config.DATA.NUM_FRAMES,3)+images.size()[-2:])
+        images = images.view((-1, config.DATA.NUM_FRAMES, 3) + images.size()[-2:])
         
         if mixup_fn is not None:
             images, label_id = mixup_fn(images, label_id)
@@ -200,29 +200,30 @@ def train_one_epoch(epoch, model, criterion, optimizer, lr_scheduler, train_load
             texts = texts.view(1, -1)
         
         output = model(images, texts)
-
         total_loss = criterion(output, label_id)
         total_loss = total_loss / config.TRAIN.ACCUMULATION_STEPS
 
-        if config.TRAIN.ACCUMULATION_STEPS == 1:
-            optimizer.zero_grad()
-        if config.TRAIN.OPT_LEVEL != 'O0':
-            total_loss.backward()
+        # backward
+        optimizer.zero_grad(set_to_none=True)
+        total_loss.backward()
+        optimizer.step()
+        lr_scheduler.step_update(epoch * num_steps + idx)
 
-        else:
-            total_loss.backward()
-        if config.TRAIN.ACCUMULATION_STEPS > 1:
-            if (idx + 1) % config.TRAIN.ACCUMULATION_STEPS == 0:
-                optimizer.step()
-                optimizer.zero_grad()
-                lr_scheduler.step_update(epoch * num_steps + idx)
-        else:
-            optimizer.step()
-            lr_scheduler.step_update(epoch * num_steps + idx)
+        # compute accuracy
+        _, preds = output.topk(1, dim=-1)
+
+        # Handle case when label_id is one-hot or soft
+        if label_id.ndim > 1:
+            label_id = label_id.argmax(dim=-1)
+
+        correct = (preds.view(-1) == label_id).sum().item()
+        acc = correct / label_id.size(0) * 100
+
 
         torch.cuda.synchronize()
-        
-        tot_loss_meter.update(total_loss.item(), len(label_id))
+
+        tot_loss_meter.update(total_loss.item(), label_id.size(0))
+        acc1_meter.update(acc, label_id.size(0))
         batch_time.update(time.time() - end)
         end = time.time()
 
@@ -234,10 +235,13 @@ def train_one_epoch(epoch, model, criterion, optimizer, lr_scheduler, train_load
                 f'Train: [{epoch}/{config.TRAIN.EPOCHS}][{idx}/{num_steps}]\t'
                 f'eta {datetime.timedelta(seconds=int(etas))} lr {lr:.9f}\t'
                 f'time {batch_time.val:.4f} ({batch_time.avg:.4f})\t'
-                f'tot_loss {tot_loss_meter.val:.4f} ({tot_loss_meter.avg:.4f})\t'
+                f'loss {tot_loss_meter.val:.4f} ({tot_loss_meter.avg:.4f})\t'
+                f'acc@1 {acc1_meter.val:.2f} ({acc1_meter.avg:.2f})\t'
                 f'mem {memory_used:.0f}MB')
+
     epoch_time = time.time() - start
-    logger.info(f"EPOCH {epoch} training takes {datetime.timedelta(seconds=int(epoch_time))}")
+    logger.info(f"EPOCH {epoch} done in {datetime.timedelta(seconds=int(epoch_time))}")
+    logger.info(f"-> Train Loss (avg): {tot_loss_meter.avg:.4f} | Train Acc@1 (avg): {acc1_meter.avg:.2f}%")
 
 
 @torch.no_grad()
@@ -245,10 +249,13 @@ def validate(val_loader, text_labels, model, config):
     model.eval()
     all_true, all_pred = [], []
 
-    acc1_meter, acc5_meter = AverageMeter(), AverageMeter()
+    acc1_meter, acc5_meter, loss_meter = AverageMeter(), AverageMeter(), AverageMeter()
+    criterion = nn.CrossEntropyLoss().cuda()
+
     with torch.no_grad():
         text_inputs = text_labels.cuda()
         logger.info(f"{config.TEST.NUM_CLIP * config.TEST.NUM_CROP} views inference")
+
         for idx, batch_data in enumerate(val_loader):
             _image = batch_data["imgs"]
             label_id = batch_data["label"]
@@ -261,24 +268,22 @@ def validate(val_loader, text_labels, model, config):
            
             tot_similarity = torch.zeros((b, config.DATA.NUM_CLASSES)).cuda()
             for i in range(n):
-                image = _image[:, i, :, :, :, :] # [b,t,c,h,w]
+                image = _image[:, i, :, :, :, :].cuda(non_blocking=True)
                 label_id = label_id.cuda(non_blocking=True)
-                image_input = image.cuda(non_blocking=True)
-
-                if config.TRAIN.OPT_LEVEL == 'O2':
-                    image_input = image_input.half()
-                
-                output = model(image_input, text_inputs)
-                
+                output = model(image, text_inputs)
                 similarity = output.view(b, -1).softmax(dim=-1)
                 tot_similarity += similarity
 
-            values_1, indices_1 = tot_similarity.topk(1, dim=-1)
-            values_5, indices_5 = tot_similarity.topk(5, dim=-1)
             preds = tot_similarity.argmax(dim=-1)
+            loss = criterion(tot_similarity, label_id)
+            loss_meter.update(loss.item(), b)
+
             all_pred.extend(preds.cpu().numpy().tolist())
             all_true.extend(label_id.cpu().numpy().tolist())
 
+            # accuracy computation
+            values_1, indices_1 = tot_similarity.topk(1, dim=-1)
+            values_5, indices_5 = tot_similarity.topk(5, dim=-1)
 
             acc1, acc5 = 0, 0
             for i in range(b):
@@ -286,19 +291,20 @@ def validate(val_loader, text_labels, model, config):
                     acc1 += 1
                 if label_id[i] in indices_5[i]:
                     acc5 += 1
-           
+
             acc1_meter.update(float(acc1) / b * 100, b)
             acc5_meter.update(float(acc5) / b * 100, b)
+
             if idx % config.PRINT_FREQ == 0:
                 logger.info(
                     f'Test: [{idx}/{len(val_loader)}]\t'
-                    f'Acc@1: {acc1_meter.avg:.3f}\t'
+                    f'Acc@1 {acc1_meter.avg:.3f}\tLoss {loss_meter.avg:.4f}'
                 )
+
     acc1_meter.sync()
     acc5_meter.sync()
-    logger.info(f' * Acc@1 {acc1_meter.avg:.3f} Acc@5 {acc5_meter.avg:.3f}')
+    logger.info(f' * Acc@1 {acc1_meter.avg:.3f}  Acc@5 {acc5_meter.avg:.3f}  Avg Loss {loss_meter.avg:.4f}')
     return acc1_meter.avg, all_true, all_pred
-
 
 
 if __name__ == '__main__':

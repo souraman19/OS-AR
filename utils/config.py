@@ -14,11 +14,11 @@ _C.DATA = CN()
 _C.DATA.ROOT = ''
 _C.DATA.TRAIN_FILE = ''
 _C.DATA.VAL_FILE = ''
-_C.DATA.DATASET = 'kinetics400'
+_C.DATA.DATASET = 'ucf101'
 _C.DATA.INPUT_SIZE = 224
 _C.DATA.NUM_FRAMES = 8
 _C.DATA.NUM_CLASSES = 400
-_C.DATA.LABEL_LIST = 'labels/kinetics_400_labels.csv'
+_C.DATA.LABEL_LIST = ''
 
 # -----------------------------------------------------------------------------
 # Model settings
