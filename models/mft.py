@@ -7,7 +7,7 @@ sys.path.append("../")
 from clip.model import QuickGELU
 
 
-class ResidualAttentionBlock(nn.Module):
+class ResidualAttentionModule(nn.Module):
     def __init__(self, d_model: int, n_head: int, attn_mask: torch.Tensor = None):
         super().__init__()
 
@@ -31,14 +31,14 @@ class ResidualAttentionBlock(nn.Module):
         return x
 
 
-class MultiframeIntegrationTransformer(nn.Module):
+class MultiframeFusionTransformer(nn.Module):
     def __init__(self, T, embed_dim=512, layers=1,):
         super().__init__()
         self.T = T
         transformer_heads = embed_dim // 64
         self.positional_embedding = nn.Parameter(torch.empty(1, T, embed_dim))
         trunc_normal_(self.positional_embedding, std=0.02)
-        self.resblocks = nn.Sequential(*[ResidualAttentionBlock(d_model=embed_dim, n_head=transformer_heads) for _ in range(layers)])
+        self.resblocks = nn.Sequential(*[ResidualAttentionModule(d_model=embed_dim, n_head=transformer_heads) for _ in range(layers)])
 
         self.apply(self._init_weights)
     

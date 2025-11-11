@@ -8,7 +8,7 @@ sys.path.append("../")
 from clip.model import LayerNorm, QuickGELU, DropPath
 
 
-class CrossFramelAttentionBlock(nn.Module):
+class InterFramelAttentionBlock(nn.Module):
     def __init__(self, d_model: int, n_head: int, attn_mask: torch.Tensor = None, droppath = 0., T=0, ):
         super().__init__()
         self.T = T
@@ -64,7 +64,7 @@ class Transformer(nn.Module):
         self.width = width
         self.layers = layers
         
-        self.resblocks = nn.Sequential(*[CrossFramelAttentionBlock(width, heads, attn_mask, droppath[i], T) for i in range(layers)])
+        self.resblocks = nn.Sequential(*[InterFramelAttentionBlock(width, heads, attn_mask, droppath[i], T) for i in range(layers)])
        
     def forward(self, x: torch.Tensor):
         if not self.use_checkpoint:
@@ -73,7 +73,7 @@ class Transformer(nn.Module):
             return checkpoint_sequential(self.resblocks, 3, x)
 
 
-class CrossFrameCommunicationTransformer(nn.Module):
+class InterFrameTransformer(nn.Module):
     def __init__(self, input_resolution: int, patch_size: int, width: int, layers: int, heads: int, output_dim: int,
                  droppath = None, T = 8, use_checkpoint = False,):
         super().__init__()

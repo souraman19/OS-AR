@@ -25,7 +25,7 @@ import random
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from datasets.blending import CutmixMixupBlending
 from utils.config import get_config
-from models import xclip
+from models import vlan
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
 import matplotlib.pyplot as plt
 
@@ -67,7 +67,7 @@ def parse_option():
 
 def main(config): 
     train_data, val_data, train_loader, val_loader = build_dataloader(logger, config)
-    model, _ = xclip.load(config.MODEL.PRETRAINED, config.MODEL.ARCH, 
+    model, _ = vlan.load(config.MODEL.PRETRAINED, config.MODEL.ARCH, 
                          device="cpu", jit=False, 
                          T=config.DATA.NUM_FRAMES, 
                          droppath=config.MODEL.DROP_PATH_RATE, 

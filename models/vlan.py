@@ -2,16 +2,16 @@ from typing import Tuple, Union
 import torch
 from torch import nn
 import numpy as np
-from .mit import MultiframeIntegrationTransformer
-from .prompt import VideoSpecificPrompt
-from .cct import CrossFrameCommunicationTransformer
+from .mft import MultiframeFusionTransformer
+from .vpm import VideoAwarePromptModule
+from .ift import InterFrameTransformer
 import sys
 import warnings
 sys.path.append("../")
 from clip.model import CLIP,LayerNorm,Transformer
 import clip
 
-class XCLIP(CLIP):
+class VLAN(CLIP):
     def __init__(self,
                  embed_dim: int,
                  # vision
@@ -42,14 +42,14 @@ class XCLIP(CLIP):
             context_length, vocab_size, transformer_width, transformer_heads, transformer_layers
         )
         
-        self.prompts_generator = VideoSpecificPrompt(layers=prompts_layers, embed_dim=embed_dim, alpha=prompts_alpha,)
+        self.prompts_generator = VideoAwarePromptModule(layers=prompts_layers, embed_dim=embed_dim, alpha=prompts_alpha,)
         self.use_cache=use_cache
-        self.mit = MultiframeIntegrationTransformer(T=T, embed_dim=embed_dim, layers=mit_layers,)
+        self.mit = MultiframeFusionTransformer(T=T, embed_dim=embed_dim, layers=mit_layers,)
 
         dpr = [x.item() for x in torch.linspace(0, droppath, vision_layers)] if droppath > 0. else None
 
         vision_heads = vision_width // 64
-        self.visual = CrossFrameCommunicationTransformer(
+        self.visual = InterFrameTransformer(
             input_resolution=image_resolution,
             patch_size=vision_patch_size,
             width=vision_width,
@@ -173,7 +173,7 @@ def build_model(state_dict: dict, T=8, droppath=0., use_checkpoint=False, logger
     transformer_heads = transformer_width // 64
     transformer_layers = len(set(k.split(".")[2] for k in state_dict if k.startswith(f"transformer.resblocks")))
     
-    model = XCLIP(
+    model = VLAN(
         embed_dim,
         image_resolution, vision_layers, vision_width, vision_patch_size,
         context_length, vocab_size, transformer_width, transformer_heads, transformer_layers,  
