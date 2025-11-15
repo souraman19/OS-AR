@@ -3,7 +3,7 @@ python main.py \
   --output output/ucf101_test \
   --opts \
   DATA.ROOT F:/OS-AR/data/ucf101 \
-  DATA.VAL_FILE F:/OS-AR/data/datalist/fs_test.txt \
+  DATA.VAL_FILE F:/OS-AR/data/datalist/fs_test_final.txt \
   DATA.LABEL_LIST F:/ZS-AR/VideoX/X-CLIP/data/ucf101/labels/ucf_101_labels.csv \
   MODEL.RESUME F:/OS-AR/output/ucf101/fs_ckpt_epoch_20.pth \
   TEST.ONLY_TEST True

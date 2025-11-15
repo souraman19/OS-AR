@@ -126,6 +126,7 @@ def main(config):
         cm = confusion_matrix(all_true, all_pred)
         logger.info("Confusion Matrix:")
         logger.info(cm)
+        np.savetxt(os.path.join(config.OUTPUT, "cm.txt"), cm, fmt="%d")
 
         report = classification_report(all_true, all_pred, digits=4)
         logger.info("Classification Report:\n" + report)
@@ -133,6 +134,24 @@ def main(config):
         # Optionally also print to console
         print("=== Classification Report ===")
         print(report)
+
+        # === Save first 20 predictions and actual labels ===
+        first_n = 20
+        pred_actual_pairs = list(zip(all_true[:first_n], all_pred[:first_n]))
+
+        # Print to console
+        print("\n=== First 20 Predictions vs Actual ===")
+        for i, (t, p) in enumerate(pred_actual_pairs):
+            print(f"{i+1}. Actual: {t}   Predicted: {p}")
+
+        # Save to pred.txt
+        pred_file = os.path.join(config.OUTPUT, "pred.txt")
+        with open(pred_file, "w") as f:
+            for i, (t, p) in enumerate(pred_actual_pairs):
+                f.write(f"{i+1}. Actual: {t}   Predicted: {p}\n")
+
+        logger.info(f"First 20 predictions saved to {pred_file}")
+
 
         # Optional: save confusion matrix image
         plt.figure(figsize=(10, 8))
